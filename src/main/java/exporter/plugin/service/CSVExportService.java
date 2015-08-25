@@ -8,6 +8,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import com.pearson.nemo.api.activity.Activity;
+import com.pearson.nemo.api.activity.ActivityDao;
 import com.pearson.workbench.model.EpsInstitution;
 import com.pearson.workbench.services.ServiceProvider;
 
@@ -26,6 +27,7 @@ public class CSVExportService {
 
 	public String buildCSVFileContent(String ids[]) {
 		StringBuilder sb = new StringBuilder();
+		ActivityDao ActivityDao = serviceProvider.getActivityDao();
 		String result = null;
 		sb.append("Nemo GUID,");
 		sb.append("EPS GUID,");
@@ -34,26 +36,9 @@ public class CSVExportService {
 		sb.append(NEW_LINE_SEPARATOR);
 
 		ArrayList<String> idList = new ArrayList(Arrays.asList(ids[0].split(",")));
-		ArrayList<String> idListDesendent = new ArrayList();
 
-		for (int i = 0; i < idList.size(); i++) {
-			String id = idList.get(i); // item ID
-			idListDesendent.add(id);
-			int startPoint = idListDesendent.size() - 1;
-			for (int x = startPoint; x < idListDesendent.size(); x++) {
-				String idDes = idListDesendent.get(x);
-				Activity item = serviceProvider.getActivityDao().get(idDes);
-				List<String> itemChildrenGuids = item.getChildren();
-				for (String itemChildGuid : itemChildrenGuids) {
-					Activity itemChild = serviceProvider.getActivityDao().getByGuid(itemChildGuid);
-					idListDesendent.add(itemChild.getId());
-				}
-			}
-
-		}
-
-		for (String id : idListDesendent) {
-			Activity activity = serviceProvider.getActivityDao().get(id);
+		for (String id : getAllItemIds(idList)) {
+			Activity activity = ActivityDao.get(id);
 			EpsInstitution epsInstitution = serviceProvider.getCurrentContext().getWorkspace().getInstitutions().get(0);
 
 			sb.append(activity.getGuid().toString());
@@ -69,6 +54,28 @@ public class CSVExportService {
 		System.out.println("CSV file was created successfully !!!");
 		return result;
 
+	}
+
+	public ArrayList<String> getAllItemIds(ArrayList<String> idList) {
+
+		ArrayList<String> allIdList = new ArrayList<>();
+		ActivityDao ActivityDao = serviceProvider.getActivityDao();
+		for (int i = 0; i < idList.size(); i++) {
+			String id = idList.get(i); // item ID
+			allIdList.add(id);
+			int startPoint = allIdList.size() - 1;
+			for (int x = startPoint; x < allIdList.size(); x++) {
+				String idDes = allIdList.get(x);
+				Activity item = ActivityDao.get(idDes);
+				List<String> itemChildrenGuids = item.getChildren();
+				for (String itemChildGuid : itemChildrenGuids) {
+					Activity itemChild = ActivityDao.getByGuid(itemChildGuid);
+					allIdList.add(itemChild.getId());
+				}
+			}
+
+		}
+		return allIdList;
 	}
 
 }
