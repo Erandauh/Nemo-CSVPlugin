@@ -1,0 +1,11 @@
+package brix.plugin;
+
+import ro.fortsoft.pf4j.Plugin;
+import ro.fortsoft.pf4j.PluginWrapper;
+
+
+public class BrixPlugin extends Plugin {
+    public BrixPlugin(PluginWrapper pluginWrapper) {
+        super(pluginWrapper);
+    }
+}

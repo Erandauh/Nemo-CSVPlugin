@@ -1,0 +1,4 @@
+Manifest-Version: 1.0
+Plugin-Class: exporter.plugin.csvExportPlugin
+Plugin-Version: 1.1.9
+Plugin-Id: csv-export-plugin

@@ -1,0 +1,150 @@
+import org.apache.tools.ant.taskdefs.condition.Os
+
+apply plugin: 'java'
+apply plugin: 'idea'
+apply plugin: 'eclipse'
+apply plugin: 'maven'
+
+repositories {
+    mavenCentral()
+
+    maven {
+        credentials {
+            username nexusUsername
+            password nexusPassword
+        }
+        url 'https://devops-tools.pearson.com/nexus-master/content/repositories/releases'
+    }
+}
+
+configurations {
+    provided
+    testExternal
+}
+
+configurations.all {
+    resolutionStrategy {
+        cacheDynamicVersionsFor 0, 'seconds'
+        cacheChangingModulesFor 0, 'seconds'
+    }
+}
+
+sourceSets {
+    main {
+        compileClasspath += configurations.provided
+    }
+    test {
+        compileClasspath += configurations.provided
+    }
+}
+
+dependencies {
+    compile fileTree(dir: 'lib', include: '*.jar')
+    compile(
+            'net.sf.opencsv:opencsv:2.3',
+			'org.apache.commons:commons-io:1.3.2'	
+
+    )
+    provided(
+            "junit:junit:4.11",
+            "org.easymock:easymock:3.3.1",
+            'com.pearson:nemo-pf4j:1.0',
+            'com.pearson:nemo-plugin-api:1.4.3'
+    )
+    testCompile(
+            "junit:junit:4.11",
+            "org.easymock:easymock:3.3.1",
+            "net.sf.opencsv:opencsv:2.3",
+            "org.mockito:mockito-core:1.+",
+            "org.assertj:assertj-core:2.1.0",
+            "com.pearson:nemo-pf4j:1.0",
+            "com.pearson:nemo-plugin-api:1.4.3"
+    )
+    testExternal(
+            "junit:junit:4.11",
+            "org.easymock:easymock:3.3.1",
+            "com.google.code.gson:gson:2.2.4",
+            "play:play_2.10:2.1.0",
+            "play:play-java_2.10:2.1.0",
+            "com.pearson:nemo-pf4j:1.0",
+            "com.pearson:nemo-plugin-api:1.4.3",
+            "org.mongodb.morphia:morphia:0.107",
+    )
+    testExternal fileTree(dir: 'lib', include: '*.jar')
+}
+
+test {
+    testLogging {
+        events 'started', 'passed'
+    }
+}
+
+task zip(type: Zip) {
+    from (file("${buildDir}/classes/main")) {
+        into "classes"
+    }
+    from (file("${buildDir}/resources/main/META-INF")) {
+        into "classes/META-INF"
+    }
+    from (file("${buildDir}/resources/main/public")) {
+        into "classes/public"
+    }
+    configurations.compile.each {
+        from (file(it)) {
+            into "lib"
+        }
+    }
+}
+
+idea {
+    module{
+        scopes.PROVIDED.plus += [configurations.provided]
+    }
+}
+
+eclipse {
+    classpath {
+        plusConfigurations += [configurations.provided]
+    }
+}
+
+build { dependsOn zip }
+
+def nemoDir = project.hasProperty('nemoDir') ? nemoDir : ""
+
+task stopPaat(type: Exec) {
+    workingDir nemoDir
+
+    if (Os.isFamily(Os.FAMILY_WINDOWS)) {
+        commandLine 'cmd', '/c', 'stop.bat'
+    }
+    else {
+        executable 'sh'
+        args '-c', 'kill `cat RUNNING_PID`'
+    }
+}
+
+task deployToNemo(type: Copy) {
+    dependsOn zip
+
+    from zip
+    into "${nemoDir}/plugins"
+}
+
+if ( project.hasProperty('nexusUrl') && project.hasProperty('nexusUsername') && project.hasProperty('nexusPassword') ) {
+    uploadArchives {
+        dependsOn jar
+
+        repositories {
+            mavenDeployer {
+                repository(url: nexusUrl) {
+                    authentication(userName: nexusUsername, password: nexusPassword )
+
+                    pom.version = "1.0-SNAPSHOT"
+                    pom.artifactId = "brix-plugin"
+                    pom.groupId = "com.pearson"
+                }
+            }
+        }
+    }
+}
